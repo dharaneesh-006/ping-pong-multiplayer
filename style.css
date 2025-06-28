@@ -1,0 +1,102 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Press Start 2P', monospace;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+}
+h1 {
+  font-size: 1rem;
+  margin: 10px 0;
+}
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  margin: 10px;
+}
+input, button {
+  font-size: 0.8rem;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+}
+button {
+  background: #00d1ff;
+  color: #000;
+  font-weight: bold;
+  cursor: pointer;
+}
+#game {
+  position: relative;
+  width: 90vmin;
+  height: 90vmin;
+  max-width: 400px;
+  max-height: 400px;
+  background: #000;
+  border: 4px solid #00d1ff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.paddle {
+  position: absolute;
+  background: #00ff90;
+  transition: background 0.3s;
+}
+.inactive { background: #444; }
+#paddle-bottom, #paddle-top {
+  width: 25%;
+  height: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+#paddle-bottom { bottom: 0; }
+#paddle-top { top: 0; }
+#paddle-left, #paddle-right {
+  width: 4%;
+  height: 25%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+#paddle-left { left: 0; }
+#paddle-right { right: 0; }
+#ball {
+  position: absolute;
+  font-size: 6vmin;
+  width: 6vmin;
+  height: 6vmin;
+}
+#scoreDisplay {
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+  color: #0f0;
+}
+#leaderboard {
+  width: 90vmin;
+  max-width: 400px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 10px;
+}
+#leaderboard h3 {
+  color: #ffeb3b;
+  font-size: 0.8rem;
+  margin-bottom: 5px;
+}
+#leaderboard ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#leaderboard li {
+  font-size: 0.65rem;
+  padding: 4px;
+  border-bottom: 1px solid #333;
+}
