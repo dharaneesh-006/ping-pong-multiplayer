@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Emoji Ping Pong - Multiplayer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Press Start 2P', monospace;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+    }
+    #game {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin: 20px;
+      background: #000;
+      border: 4px solid #00d1ff;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .paddle {
+      position: absolute;
+      background: #00ff90;
+    }
+    .inactive {
+      background: #555 !important;
+    }
+    #paddle-bottom { bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 10px; }
+    #paddle-top    { top: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 10px; }
+    #paddle-left   { top: 50%; left: 0; transform: translateY(-50%); width: 10px; height: 80px; }
+    #paddle-right  { top: 50%; right: 0; transform: translateY(-50%); width: 10px; height: 80px; }
+    #ball {
+      position: absolute;
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
+    #scoreDisplay {
+      font-size: 0.8rem;
+      margin-bottom: 5px;
+      color: #0f0;
+    }
+    input, button {
+      font-size: 1rem;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      margin: 5px;
+    }
+    button {
+      background: #00d1ff;
+      color: #000;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #00aacc;
+    }
+    #leaderboard {
+      margin-top: 10px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 10px;
+      width: 280px;
+    }
+    #leaderboard h3 {
+      color: #ffeb3b;
+    }
+    #leaderboard ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #leaderboard li {
+      padding: 4px;
+      border-bottom: 1px solid #444;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏓 Emoji Ping Pong</h1>
+  <input type="text" id="playerName" placeholder="Your Name" />
+  <input type="text" id="roomCode" placeholder="Room Code (e.g. 12345)" />
+  <button onclick="joinRoom()">Join Game</button>
+  <div id="scoreDisplay"></div>
+
+  <div id="game">
+    <div id="ball">😊</div>
+    <div class="paddle" id="paddle-bottom"></div>
+    <div class="paddle" id="paddle-top"></div>
+    <div class="paddle" id="paddle-left"></div>
+    <div class="paddle" id="paddle-right"></div>
+  </div>
+
+  <div id="leaderboard">
+    <h3>🏆 Leaderboard</h3>
+    <ul id="leaderboard-list"></ul>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    const config = {
+      apiKey: "AIzaSyAJhx7zJPHT-otg-MwbYwzW0nZ4Qdp8IPg",
+      authDomain: "ping-pong-6206f.firebaseapp.com",
+      databaseURL: "https://ping-pong-6206f-default-rtdb.firebaseio.com",
+      projectId: "ping-pong-6206f",
+      storageBucket: "ping-pong-6206f.appspot.com",
+      messagingSenderId: "602425829782",
+      appId: "1:602425829782:web:126f9c9a415a0d8d5e15b7"
+    };
+    firebase.initializeApp(config);
+    const db = firebase.database();
+
+    let playerSide = "";
+    let room = "";
+
+    const ball = document.getElementById("ball");
+    const leaderboardList = document.getElementById("leaderboard-list");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const paddles = {
+      bottom: document.getElementById("paddle-bottom"),
+      top: document.getElementById("paddle-top"),
+      left: document.getElementById("paddle-left"),
+      right: document.getElementById("paddle-right")
+    };
+
+    function joinRoom() {
+      const name = document.getElementById("playerName").value.trim();
+      room = document.getElementById("roomCode").value.trim();
+      if (!name || !room) return alert("Fill all fields");
+
+      const roomRef = db.ref("rooms/" + room + "/players");
+      roomRef.once("value").then(snapshot => {
+        const players = snapshot.val() || {};
+        const sides = ["bottom", "top", "left", "right"];
+        const taken = Object.keys(players);
+        const available = sides.find(s => !taken.includes(s));
+
+        if (!available) return alert("Room full");
+
+        playerSide = available;
+        roomRef.child(playerSide).set({ name, alive: true, x: 150, y: 150, outAt: null, score: 0 });
+
+        listenToGame();
+        handleMovement();
+
+        if (playerSide === "bottom") startBall();
+      });
+    }
+
+    function handleMovement() {
+      document.addEventListener("mousemove", (e) => {
+        const gameRect = document.getElementById("game").getBoundingClientRect();
+        const x = e.clientX - gameRect.left;
+        const y = e.clientY - gameRect.top;
+        const ref = db.ref(`rooms/${room}/players/${playerSide}`);
+        if (playerSide === "bottom" || playerSide === "top") {
+          ref.update({ x });
+        } else {
+          ref.update({ y });
+        }
+      });
+    }
+
+    function startBall() {
+      let x = 140, y = 140, vx = 2, vy = 2;
+      const interval = setInterval(() => {
+        x += vx;
+        y += vy;
+
+        if (x <= 0 || x >= 276) vx *= -1;
+        if (y <= 0 || y >= 276) vy *= -1;
+
+        db.ref(`rooms/${room}/players`).once("value").then(snapshot => {
+          const players = snapshot.val() || {};
+          for (let side in players) {
+            if (!players[side].alive) continue;
+            const p = players[side];
+            let hit = false;
+            if (side === "bottom" && vy > 0 && y + 24 >= 290 && x >= p.x && x <= p.x + 80) hit = true;
+            else if (side === "top" && vy < 0 && y <= 10 && x >= p.x && x <= p.x + 80) hit = true;
+            else if (side === "left" && vx < 0 && x <= 10 && y >= p.y && y <= p.y + 80) hit = true;
+            else if (side === "right" && vx > 0 && x + 24 >= 290 && y >= p.y && y <= p.y + 80) hit = true;
+
+            if (hit) {
+              if (side === "top" || side === "bottom") vy *= -1;
+              else vx *= -1;
+              const playerRef = db.ref(`rooms/${room}/players/${side}`);
+              playerRef.transaction(player => {
+                if (player && player.alive) player.score = (player.score || 0) + 1;
+                return player;
+              });
+            } else if (
+              (side === "bottom" && y > 300) ||
+              (side === "top" && y < -10) ||
+              (side === "left" && x < -10) ||
+              (side === "right" && x > 300)
+            ) {
+              db.ref(`rooms/${room}/players/${side}`).update({ alive: false, outAt: Date.now() });
+              checkWinner();
+            }
+          }
+        });
+
+        db.ref(`rooms/${room}/ball`).set({ x, y });
+      }, 30);
+    }
+
+    function listenToGame() {
+      db.ref(`rooms/${room}/ball`).on("value", snap => {
+        const ballPos = snap.val();
+        if (ballPos) {
+          ball.style.left = ballPos.x + "px";
+          ball.style.top = ballPos.y + "px";
+        }
+      });
+
+      db.ref(`rooms/${room}/players`).on("value", snap => {
+        const players = snap.val() || {};
+        for (let side in paddles) {
+          const p = players[side];
+          if (!p) {
+            paddles[side].style.display = "none";
+          } else {
+            paddles[side].classList.toggle("inactive", !p.alive);
+            if (side === "bottom" || side === "top") {
+              paddles[side].style.left = (p.x || 0) + "px";
+            } else {
+              paddles[side].style.top = (p.y || 0) + "px";
+            }
+          }
+        }
+
+        const sorted = Object.entries(players).sort((a, b) => {
+          if (a[1].alive && !b[1].alive) return -1;
+          if (!a[1].alive && b[1].alive) return 1;
+          return (a[1].outAt || 0) - (b[1].outAt || 0);
+        });
+        leaderboardList.innerHTML = sorted.map(([side, p], i) => `<li>${i + 1}. ${p.name} - Score: ${p.score || 0} ${!p.alive ? '❌' : ''}</li>`).join('');
+        if (playerSide && players[playerSide]) {
+          scoreDisplay.textContent = `Your Score: ${players[playerSide].score || 0}`;
+        }
+      });
+    }
+
+    function checkWinner() {
+      db.ref(`rooms/${room}/players`).once("value").then(snap => {
+        const players = snap.val();
+        const alive = Object.values(players).filter(p => p.alive);
+        if (alive.length === 1) {
+          alert(`${alive[0].name} wins the game!`);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
